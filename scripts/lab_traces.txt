@@ -1,0 +1,6 @@
+436.cactusADM-1804B.champsimtrace.xz
+437.leslie3d-134B.champsimtrace.xz
+450.soplex-247B.champsimtrace.xz
+459.GemsFDTD-1320B.champsimtrace.xz
+462.libquantum-714B.champsimtrace.xz
+482.sphinx3-1100B.champsimtrace.xz

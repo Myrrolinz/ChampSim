@@ -1,0 +1,182 @@
+#include "cache.h"
+
+#define BLOCK_OFFSET_MASK (BLOCK_SIZE - 1)
+#define PREFETCH_DEGREE 4
+
+typedef uint64_t delta_t;
+
+// Delta Cache: 代表马尔科夫链
+#define DELTA_NUM_SETS 128 // -64 到 +63 possible offsets
+#define DELTA_NUM_WAYS 16
+
+delta_t DC_delta_next[DELTA_NUM_SETS][DELTA_NUM_WAYS];      // D_next
+uint64_t DC_counter[DELTA_NUM_SETS][DELTA_NUM_WAYS];        // DC counter
+
+// Page Cache: 跟踪同一页的上一个addr/deltas
+#define PAGE_NUM_SETS 256   // 256 sets
+#define PAGE_NUM_WAYS 12    // 12 ways
+#define PAGE_TAG_BITS 10    // 10-bit page tags
+
+// 这里用的是64bit，pangloss直接用int型
+delta_t PC_delta_prev[PAGE_NUM_SETS][PAGE_NUM_WAYS];        // D_prev
+uint64_t PC_offset_prev[PAGE_NUM_SETS][PAGE_NUM_WAYS];      // O_prev
+uint64_t PC_ptags[PAGE_NUM_SETS][PAGE_NUM_WAYS];            // Page tag
+uint64_t PC_LRUbit[PAGE_NUM_SETS][PAGE_NUM_WAYS];           // LRU bit
+
+
+static delta_t norm_delta(delta_t delta) {
+    return delta + DELTA_NUM_SETS / 2;
+}
+
+static delta_t denorm_delta(delta_t delta) {
+    return delta - DELTA_NUM_SETS / 2;
+}
+
+// 更新Delta Cache 使用LRU策略
+static void update_delta_cache(delta_t prev_delta, delta_t curr_delta) {
+    // 检查hit情况
+    for (int i = 0; i < DELTA_NUM_WAYS; i++) {
+        if (DC_delta_next[prev_delta][i] == curr_delta) {
+            // hit了则counter位++
+            DC_counter[prev_delta][i]++;
+            return;
+        }
+    }
+    // 无cache hit: LFU策略，找到counter最小值，替换
+    int way = 0;
+    uint64_t min_counter = DC_counter[prev_delta][way];
+    for (int i = 1; i < DELTA_NUM_WAYS; i++) {
+        if (DC_counter[prev_delta][i] < min_counter) { // 找到counter最小值
+            way = i;
+            min_counter = DC_counter[prev_delta][i];
+        }
+    }
+    // LRU 替换当前块
+    DC_delta_next[prev_delta][way] = curr_delta;
+    DC_counter[prev_delta][way] = 1;    // counter位置1
+}
+
+void CACHE::l2c_prefetcher_initialize()
+{
+    cout << "CPU " << cpu << " L2C Markov prefetcher" << endl;
+
+    for (int i = 0; i < DELTA_NUM_SETS; i++) {
+        for (int j = 0; j < DELTA_NUM_WAYS; j++) {
+            // 初始化delta为1
+            DC_delta_next[i][j] = norm_delta(1);
+            DC_counter[i][j] = 0;
+        }
+    }
+}
+
+uint32_t CACHE::l2c_prefetcher_operate(uint64_t addr, uint64_t ip, uint8_t cache_hit, uint8_t type, uint32_t metadata_in)
+{
+    uint64_t cl_addr = addr >> LOG2_BLOCK_SIZE;
+    uint64_t page_addr = addr >> LOG2_PAGE_SIZE;
+    uint64_t curr_page_offset = cl_addr & BLOCK_OFFSET_MASK;
+
+    // 在Page Cache中查找同一页 上一条entry
+    uint64_t pc_set = page_addr % PAGE_NUM_SETS;
+    int pc_way = -1;
+    uint64_t pc_tag = page_addr & ((1 << PAGE_TAG_BITS) - 1);
+    for (int i = 0; i < PAGE_NUM_WAYS; i++) {
+        if (PC_ptags[pc_set][i] == pc_tag) {
+            pc_way = i;
+            break;
+        }
+    }
+
+    delta_t curr_delta = norm_delta(1); // 无PC hit, curr_delta置1
+
+    // page cache hit和cache miss时 更新delta cache
+    if ((pc_way != -1) && (cache_hit == 0)) {
+        delta_t prev_delta = PC_delta_prev[pc_set][pc_way];
+        uint64_t prev_page_offset = PC_offset_prev[pc_set][pc_way];
+
+        // 更新delta ($O_{curr}-O_{prev}$)
+        curr_delta = norm_delta(curr_page_offset - prev_page_offset);
+        // 更新delta cache
+        update_delta_cache(prev_delta, curr_delta);
+        // 更新page cache
+        PC_delta_prev[pc_set][pc_way] = curr_delta;
+    }
+
+    // page cache miss: 找到page cache替换块
+    if (pc_way == -1) {
+        // NRU策略
+        for (int i = 0; i < PAGE_NUM_WAYS; i++) {
+            if (PC_LRUbit[pc_set][i] == 0) {
+                pc_way = i;
+                break;
+            }
+            // 全是1，则替换第一块，并且全部翻转为0
+            if (pc_way == -1) {
+                pc_way = 0;
+                for (int i = 0; i < PAGE_NUM_WAYS; i++) {
+                    PC_LRUbit[pc_set][i] = 0;
+                }
+            }
+        }
+    }
+
+    // 更新Page Cache
+    PC_ptags[pc_set][pc_way] = pc_tag;
+    PC_offset_prev[pc_set][pc_way] = curr_page_offset;
+    PC_LRUbit[pc_set][pc_way] = 1;
+
+    // 动态调整degree
+	int degree = (MSHR.SIZE-MSHR.occupancy)*2/3;
+	if ((type==PREFETCH) && (cache_hit==0)) degree/=2;
+
+    int num_pre_issued = 0;
+    // 从当前delta开始遍历马尔科夫链
+    uint64_t next_delta = curr_delta;
+    uint64_t next_addr = cl_addr;
+    for (int j = 0; j < degree && num_pre_issued <= degree; j++) {
+        // 计算LRU counter的总数 以便计算概率
+        float sum = 0;
+        for (int i = 0; i < DELTA_NUM_WAYS; i++) {
+            sum += DC_counter[next_delta][i];
+        }
+        //找到最佳概率的delta
+        float best_prop = 0;
+        for (int i = 0; i < DELTA_NUM_WAYS; i++) {
+            float prop = DC_counter[next_delta][i] / sum;
+            // 概率大于1/3 才有可能预取
+            if (prop >= (1/3.0)) {
+                // 计算预取地址
+                uint64_t pf_addr =
+                    (next_addr + denorm_delta(DC_delta_next[next_delta][i]))
+                    << LOG2_BLOCK_SIZE;
+                uint64_t pf_page_addr = pf_addr >> LOG2_PAGE_SIZE;
+                // 在page范围限制之内，则可成功预取
+                if (page_addr == pf_page_addr) {
+                    prefetch_line(ip, addr, pf_addr, FILL_L2, 0);
+                    num_pre_issued++;
+                }
+                // 更新best_prop
+                if (prop > best_prop) {
+                    best_prop = prop;
+                    next_delta = DC_delta_next[next_delta][i];
+                    next_addr = pf_addr >> LOG2_BLOCK_SIZE;
+                }
+            }
+        }
+        // 概率都小于1/3，则丢弃
+        if (best_prop == 0) {
+            break;
+        }
+    }
+
+    return metadata_in;
+}
+
+uint32_t CACHE::l2c_prefetcher_cache_fill(uint64_t addr, uint32_t set, uint32_t way, uint8_t prefetch, uint64_t evicted_addr, uint32_t metadata_in)
+{
+  return metadata_in;
+}
+
+void CACHE::l2c_prefetcher_final_stats()
+{
+
+}

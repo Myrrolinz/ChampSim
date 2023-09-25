@@ -1,0 +1,10 @@
+403.gcc-16B.champsimtrace.xz
+410.bwaves-1963B.champsimtrace.xz
+429.mcf-184B.champsimtrace.xz
+445.gobmk-30B.champsimtrace.xz
+456.hmmer-327B.champsimtrace.xz
+470.lbm-1274B.champsimtrace.xz
+471.omnetpp-188B.champsimtrace.xz
+473.astar-359B.champsimtrace.xz
+481.wrf-455B.champsimtrace.xz
+483.xalancbmk-127B.champsimtrace.xz

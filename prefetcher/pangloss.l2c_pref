@@ -1,0 +1,233 @@
+#include "cache.h"
+#define MIN(a,b) (((a)<(b))?(a):(b))
+
+
+// Delta Cache
+#define DC_range (128)	// (-64, 63] index: delta
+#define DC_ways 16      // associality: 16
+#define DC_LFU_max 256   // FLU counter最大值
+
+int DC_delta_next[DC_range][DC_ways]; // D_next
+int DC_LFUbits[DC_range][DC_ways];	 // LFU bit
+
+
+// Page Cache
+#define PC_sets 256		// 256 sets
+#define PC_ways 12		// 12 ways
+#define PC_tags 10 	// 10-bit page tags
+
+int PC_delta_prev[PC_sets][PC_ways]; 	// D_prev
+int PC_offset_prev[PC_sets][PC_ways];	// O_prev
+int PC_ptags[PC_sets][PC_ways];		// Page tag
+int PC_NRUbit[PC_sets][PC_ways];	// NRU bit
+
+
+// 计算page tag
+int get_page_tag(uint64_t page){
+	return (page/PC_sets)&((1<<PC_tags)-1);
+}
+
+// 更新Delta Cache (delta_from -> delta_next)
+void updata_Delta_Cache(int delta_from, int delta_to){
+	// 检查hit情况
+	int dhit = 0;
+	for (int i=0; i<DC_ways; i++){
+		// hit了就LFU位++
+		if (DC_delta_next[delta_from][i]==delta_to){
+			DC_LFUbits[delta_from][i]++;
+			// 溢出时，所有counter减半，计数比例应保持相同
+			if (DC_LFUbits[delta_from][i]==DC_LFU_max){
+				for (int j=0; j<DC_ways; j++){
+					DC_LFUbits[delta_from][j]/=2;
+				}
+			}
+            // dhit 置位
+			dhit=1;
+			break;
+		}
+	}
+	// delta转移不在Delta Cache中的情况
+	if (dhit==0){
+        // 使用LFU策略 保证正确的transition概率 淘汰的delta快速丢弃
+		int min_freq=DC_LFUbits[delta_from][0];
+		int min_freq_way=0;
+		for (int i=1; i<DC_ways; i++){
+			if (DC_LFUbits[delta_from][i] < min_freq){
+				min_freq = DC_LFUbits[delta_from][i];
+				min_freq_way = i;
+			}
+		}
+        // LFU 使用当前块替换
+		DC_delta_next[delta_from][min_freq_way] = delta_to;
+		DC_LFUbits [delta_from][min_freq_way] = 1;
+	}
+}
+
+// 基于当前delta 返回下一个最可能的delta
+int get_next_best_transition (int delta){
+    // 计算当前set中LFU counter的总次数
+	int probs_sum = 0;
+	for (int i=0; i<DC_ways; i++){
+		probs_sum += DC_LFUbits[delta][i];
+	}
+	// 找到最大LFU值
+	int max_freq=DC_LFUbits[delta][0];
+	int max_freq_way=0;
+	for (int i=1; i<DC_ways; i++){
+		if (DC_LFUbits[delta][i] > max_freq){
+			max_freq = DC_LFUbits[delta][i];
+			max_freq_way = i;
+		}
+	}
+	// 以大于1/3的概率预取child delta中出现的地址，若小于则丢弃
+	if ((float)DC_LFUbits[delta][max_freq_way]/probs_sum<1/3.0)
+		return -1;
+
+	return DC_delta_next[delta][max_freq_way];
+}
+
+void CACHE::l2c_prefetcher_initialize()
+{
+	cout << "CPU " << cpu << " L2C Pangloss prefetcher" << endl;
+	// 初始化Delta Cache
+	for (int i=0; i<DC_range; i++){
+		for (int j=0; j<DC_ways; j++){
+			DC_delta_next[i][j]=1+DC_range/2;
+			DC_LFUbits[i][j]=0;
+		}
+	}
+
+}
+
+uint32_t CACHE::l2c_prefetcher_operate(uint64_t addr, uint64_t ip, uint8_t cache_hit, uint8_t type, uint32_t metadata_in)
+{
+	unsigned long long int cl_address = addr>>6;
+	unsigned long long int page = cl_address>>6;
+	int page_offset = cl_address&63;
+
+    // 在Page Cache中查找同一页 上一条entry
+	int way=-1;
+	for (int i=0; i<PC_ways; i++){
+		if (PC_ptags[page%PC_sets][i]==get_page_tag(page)){
+			way=i;
+			break;
+		}
+	}
+
+	int cur_delta = 1 + DC_range/2;  // 没找到则 delta = 1
+	int matched=0;
+
+    // Page Cache hit情况，且不是prefetch miss
+	if ( (way!=-1) && !((type==PREFETCH) && (cache_hit==0)) ){
+
+		int ldelta_l2c=PC_delta_prev[page%PC_sets][way];
+		int loff_l2c=PC_offset_prev[page%PC_sets][way];
+
+		// 计算当前delta
+		cur_delta = page_offset-loff_l2c + DC_range/2;
+		matched=1;
+        // 使用新的delta transition更新Delta Cache
+		updata_Delta_Cache(ldelta_l2c, cur_delta);
+	}
+
+	int next_delta=cur_delta;
+	uint64_t addr_n=addr;
+	int count=0;
+
+	// 动态调整degree
+	int degree = (MSHR.SIZE-MSHR.occupancy)*2/3;
+	if ((type==PREFETCH) && (cache_hit==0)) degree/=2;
+	if (NUM_CPUS>1) degree/=4;  //本次实验就用一个核，所以这句没什么用
+
+	for (int i_=0; i_<degree && count<degree; i_++){
+		// 基于当前delta，找到下一个概率最大的delta
+		int best_delta = get_next_best_transition(next_delta);
+
+		// 没找到的情况(概率<1/3)
+		if (best_delta==-1) break;
+		
+        // 计算当前set中LFU counter的总次数
+        int sum=0;
+        for (int j=0; j<DC_ways; j++){
+            sum+=DC_LFUbits[next_delta][j];
+        }
+
+        // 查找最有可能的top2 child deltas
+        int used[DC_ways] = {0};
+        for (int i=0; i<2; i++){
+            int max_way = -1;
+            int max_value =  -1;
+            for (int j=0; j<DC_ways; j++){
+                if((DC_LFUbits[next_delta][j]>max_value) && (!used[j])){
+                    max_way = j;
+                    max_value = DC_LFUbits[next_delta][j];
+                }
+            }
+            if (max_way == -1) continue;
+
+            // 概率>1/3
+            if((count<degree) && ( (float)DC_LFUbits[next_delta][max_way]/sum > 1/3.0)){
+                used[max_way]=1;
+                uint64_t pf_addr = ((addr_n>>LOG2_BLOCK_SIZE)+(DC_delta_next[next_delta][max_way]-DC_range/2)) << LOG2_BLOCK_SIZE;
+                unsigned long long int pf_page = pf_addr>>12;
+
+                // 且在同一个page内，则完成预取
+                if (page==pf_page){
+                    prefetch_line(ip, addr, pf_addr, FILL_L2, 0);
+                    count++;
+                }
+            }
+        }
+		
+		// 根据最高概率delta值更新下一个delta
+		next_delta = best_delta;
+		uint64_t pf_addr = ((addr_n>>LOG2_BLOCK_SIZE)+(best_delta-DC_range/2)) << LOG2_BLOCK_SIZE;
+		addr_n = pf_addr;
+	}
+
+    // miss的情况：替换该块，使用NRU策略
+	if (way==-1) {
+		// 找到NRU位为0的
+		for (int i=0; i<PC_ways; i++){
+			if (PC_NRUbit[page%PC_sets][i]==0){
+				way=i;
+				break;
+			}
+		}
+		if (way==-1){ // 若全为1则反转成0
+			way=0; // 选择第一块替换
+			for (int i=0; i<PC_ways; i++)
+				PC_NRUbit[page%PC_sets][i]=0;
+		}
+	}
+
+	// hit的情况，更新Page Cache entry
+	if (matched)
+		PC_delta_prev[page%PC_sets][way]=cur_delta;
+	else
+        // miss: 没有该entry或delta transition超限的情况，则将delta值置0
+        // 0：delta = -64，会跳到另一个页中
+		PC_delta_prev[page%PC_sets][way]=0;
+
+	PC_offset_prev[page%PC_sets][way]=page_offset;
+	PC_ptags[page%PC_sets][way]=get_page_tag(page);
+	PC_NRUbit[page%PC_sets][way]=1;
+
+	return metadata_in;
+}
+
+
+uint32_t CACHE::l2c_prefetcher_cache_fill(uint64_t addr, uint32_t set, uint32_t way, uint8_t prefetch, uint64_t evicted_addr, uint32_t metadata_in)
+{
+	unsigned long long int cl_address = addr>>6;
+	unsigned long long int page = cl_address>>6;
+	int page_offset = cl_address&63;
+
+	return metadata_in;
+}
+
+
+void CACHE::l2c_prefetcher_final_stats()
+{
+
+}

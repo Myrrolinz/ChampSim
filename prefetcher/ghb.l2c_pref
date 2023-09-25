@@ -1,0 +1,114 @@
+#include "cache.h"
+
+#define GHB_SIZE           256
+#define IT_SIZE            256
+#define PREFETCH_DEGREE    4
+#define PREFETCH_LOOKAHEAD 4
+
+#define GHB_INVALID_ENTRY -1
+
+// 全局历史缓冲区(GHB)：一个循环队列，存储 L2 缓存观察到的缓存行地址
+// 序列。每个 GHB 条目存储一个指针(这里称为 prev_ptr)，该指针指向具有相同 IT
+// 索引的最后一个缓存行地址。通过遍历 prev_ptr，可以获得指向同一 IT 条目的缓
+// 存行地址的时间序列。
+typedef struct GHB_t {
+	uint64_t cl        = 0; // 全局失误地址
+	int16_t prev_entry = 0; // 链接指针，将GHB条目链入地址列表
+                            // 每个地址列表都是具有相同索引key的地址的时间顺序序列
+} GHB;
+
+uint16_t GHB_index = 0;
+
+// 索引表(Index Table，IT)：一个通过程序属性(例如程序计数器 PC)进行索引
+// 的表，它存储指向 GHB 条目的指针。
+typedef struct It_t {
+	int16_t ghb_entry = 0;
+} IT;
+
+//二者的大小都设置为256
+GHB gh_buffer[256];
+IT index_table[256];
+
+void CACHE::l2c_prefetcher_initialize() {
+	cout << "CPU " << cpu << " L2C IP-based stride prefetcher" << endl;
+	for (size_t i = 0; i < 256; i++) {
+		index_table[i].ghb_entry = GHB_INVALID_ENTRY;
+		gh_buffer[i].prev_entry  = GHB_INVALID_ENTRY;
+	}
+}
+
+uint32_t CACHE::l2c_prefetcher_operate(uint64_t addr, uint64_t ip, uint8_t cache_hit, uint8_t type, uint32_t metadata_in) {
+	// check for a tracker hit
+	uint64_t cl_addr = addr >> LOG2_BLOCK_SIZE;
+	uint64_t ip_mask = ip & 0xff;
+
+	gh_buffer[GHB_index].cl = cl_addr;
+
+	for (size_t i = 0; i < 256; i++) {
+		if (gh_buffer[i].prev_entry == GHB_index)
+			gh_buffer[i].prev_entry = GHB_INVALID_ENTRY;
+		if (index_table[i].ghb_entry == GHB_index)
+			index_table[i].ghb_entry = GHB_INVALID_ENTRY;
+	}
+
+    // 链接的entry是Index中的当前值
+	gh_buffer[GHB_index].prev_entry = index_table[ip_mask].ghb_entry;
+	index_table[ip_mask].ghb_entry  = GHB_index;
+
+	uint64_t last_access[3] = {0};
+	last_access[0] = gh_buffer[GHB_index].cl;
+    
+    // 检索访问二级缓存对应条目中的最后 3 个地址
+	if (gh_buffer[GHB_index].prev_entry != GHB_INVALID_ENTRY) {
+		last_access[1] = gh_buffer[gh_buffer[GHB_index].prev_entry].cl;
+		if (gh_buffer[gh_buffer[GHB_index].prev_entry].prev_entry != GHB_INVALID_ENTRY)
+			last_access[2] = gh_buffer[gh_buffer[gh_buffer[GHB_index].prev_entry].prev_entry].cl;
+		else {
+			GHB_index = (GHB_index + 1) % GHB_SIZE;
+			return metadata_in;
+		}
+	} else {
+		GHB_index = (GHB_index + 1) % GHB_SIZE;
+		return metadata_in;
+	}
+    // 头部指针递增 指向下一个GHB entry
+	GHB_index = (GHB_index + 1) % GHB_SIZE;
+
+    // 跨度：计算地址列表中连续条目之间的差异
+	int64_t previous_stride = 0;
+	for (size_t i = 0; i < 2; i++) {
+		int64_t stride = 0;
+		if ((last_access[i] - last_access[i + 1]) > 0)
+			stride = last_access[i] - last_access[i + 1];
+		else {
+			stride = last_access[i + 1] - last_access[i];
+			stride *= -1;
+		}
+		
+        // 如果两个步长相等(步长为 d)
+		if (previous_stride == stride) {
+			// 预取 A + ld
+			for (size_t i = 0; i < PREFETCH_DEGREE; i++) {
+				uint64_t pf_address = (cl_addr + PREFETCH_LOOKAHEAD * (stride * (i + 1))) << LOG2_BLOCK_SIZE;
+
+				// prefetch的地址与当前需求地址必须在同一page(4KB)内
+				if ((pf_address >> LOG2_PAGE_SIZE) != (addr >> LOG2_PAGE_SIZE))
+					break;
+                // 实现预取
+				prefetch_line(ip, addr, pf_address, FILL_L2, 0);
+			}
+		}
+
+		previous_stride = stride;
+	}
+
+	return metadata_in;
+}
+
+uint32_t CACHE::l2c_prefetcher_cache_fill(uint64_t addr, uint32_t set, uint32_t way, uint8_t prefetch, uint64_t evicted_addr, uint32_t metadata_in) {
+	return metadata_in;
+}
+
+void CACHE::l2c_prefetcher_final_stats() {
+	cout << "CPU " << cpu << " LLC PC-based stride prefetcher final stats" << endl;
+}

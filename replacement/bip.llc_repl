@@ -1,0 +1,78 @@
+#include "cache.h"
+
+#define MAX_LRU_POS LLC_WAY
+#define BIMODAL_THRESH 6		// threshold: 6%
+
+void CACHE::llc_initialize_replacement()
+{
+    cout << "Initialize BIP state\n" << endl;
+
+	// LRU位初始化
+	for (uint32_t i=0; i<LLC_SET; i++) {
+		for (uint32_t j=0; j<LLC_WAY; j++) {
+				block[i][j].lru = MAX_LRU_POS;
+		}
+	}
+}
+
+void CACHE::llc_update_replacement_state(uint32_t cpu, uint32_t set, uint32_t way, uint64_t full_addr, uint64_t ip, uint64_t victim_addr, uint32_t type, uint8_t hit)
+{
+    if (hit && (type == WRITEBACK)) // WB不更新LRU位
+		return;
+	else if(hit){
+		// hit情况：promote towards MRU
+		if(block[set][way].lru > 0)
+			block[set][way].lru--;	
+	}
+}
+
+uint32_t CACHE::llc_find_victim(uint32_t cpu, uint64_t instr_id, uint32_t set, const BLOCK *current_set, uint64_t ip, uint64_t full_addr, uint32_t type)
+{
+    uint32_t way = 0, new_way = 0;
+
+    // fill invalid line first
+    for (way=0; way<LLC_WAY; way++) {
+        if (block[set][way].valid == false) {
+
+            DP ( if (warmup_complete[cpu]) {
+            cout << "[" << NAME << "] " << __func__ << " instr_id: " << instr_id << " invalid set: " << set << " way: " << way;
+            cout << hex << " address: " << (full_addr>>LOG2_BLOCK_SIZE) << " victim address: " << block[set][way].address << " data: " << block[set][way].data;
+            cout << dec << " lru: " << block[set][way].lru << endl; });
+
+            break;
+        }
+    }
+
+	// 没有空，则LRU
+	if(way == LLC_WAY){
+        for (way=0; way<LLC_WAY; way++) {
+            if (block[set][way].lru > block[set][new_way].lru) {
+				new_way = way;
+            }
+			DP ( if (warmup_complete[cpu]) {
+			cout << "[" << NAME << "] " << __func__ << " instr_id: " << instr_id << " replace set: " << set << " way: " << new_way;
+			cout << hex << " address: " << (full_addr>>LOG2_BLOCK_SIZE) << " victim address: " << block[set][new_way].address << " data: " << block[set][new_way].data;
+			cout << dec << " lru: " << block[set][new_way].lru << endl; });
+		}
+	}
+	else
+		new_way = way;
+
+    if (new_way == LLC_WAY) {
+        cerr << "[" << NAME << "] " << __func__ << " no victim! set: " << set << endl;
+        assert(0);
+    }
+
+	// BIP策略：以6%的概率把该块放到MRU位；否则就放到LRU位(LIP策略)
+    if((rand() % 100) <= BIMODAL_THRESH)
+		block[set][new_way].lru = 0;
+	else
+		block[set][new_way].lru = MAX_LRU_POS;
+
+    return new_way;
+}
+
+void CACHE::llc_replacement_final_stats()
+{
+
+}

@@ -1,0 +1,220 @@
+ip_stride-lru
+traces/436.cactusADM-1804B.champsimtrace.xz score: 0.409700
+traces/437.leslie3d-134B.champsimtrace.xz score: 1.136200
+traces/450.soplex-247B.champsimtrace.xz score: 0.327330
+traces/459.GemsFDTD-1169B.champsimtrace.xz score: 0.535490
+traces/462.libquantum-714B.champsimtrace.xz score: 0.693460
+traces/482.sphinx3-1100B.champsimtrace.xz score: 0.943980
+avg score: 0.674360
+
+ip_stride-lfu
+traces/436.cactusADM-1804B.champsimtrace.xz score: 0.411070
+traces/437.leslie3d-134B.champsimtrace.xz score: 1.035650
+traces/450.soplex-247B.champsimtrace.xz score: 0.314800
+traces/459.GemsFDTD-1169B.champsimtrace.xz score: 0.531210
+traces/462.libquantum-714B.champsimtrace.xz score: 0.717230
+traces/482.sphinx3-1100B.champsimtrace.xz score: 0.997360
+avg score: 0.667887
+
+ip_stride-mrulfu
+traces/436.cactusADM-1804B.champsimtrace.xz score: 0.411070
+traces/437.leslie3d-134B.champsimtrace.xz score: 1.030900
+traces/450.soplex-247B.champsimtrace.xz score: 0.311140
+traces/459.GemsFDTD-1169B.champsimtrace.xz score: 0.530090
+traces/462.libquantum-714B.champsimtrace.xz score: 0.717230
+traces/482.sphinx3-1100B.champsimtrace.xz score: 0.981500
+avg score: 0.663655
+
+ip_stride-mru
+traces/436.cactusADM-1804B.champsimtrace.xz score: 0.411070
+traces/437.leslie3d-134B.champsimtrace.xz score: 1.034400
+traces/450.soplex-247B.champsimtrace.xz score: 0.314170
+traces/459.GemsFDTD-1169B.champsimtrace.xz score: 0.530090
+traces/462.libquantum-714B.champsimtrace.xz score: 0.717230
+traces/482.sphinx3-1100B.champsimtrace.xz score: 0.995340
+avg score: 0.667050
+
+ip_stride-bip
+traces/436.cactusADM-1804B.champsimtrace.xz score: 0.410510
+traces/437.leslie3d-134B.champsimtrace.xz score: 1.037380
+traces/450.soplex-247B.champsimtrace.xz score: 0.315190
+traces/459.GemsFDTD-1169B.champsimtrace.xz score: 0.535110
+traces/462.libquantum-714B.champsimtrace.xz score: 0.716680
+traces/482.sphinx3-1100B.champsimtrace.xz score: 1.015260
+avg score: 0.671688
+
+ip_stride-dip
+traces/436.cactusADM-1804B.champsimtrace.xz score: 0.411060
+traces/437.leslie3d-134B.champsimtrace.xz score: 1.034160
+traces/450.soplex-247B.champsimtrace.xz score: 0.314550
+traces/459.GemsFDTD-1169B.champsimtrace.xz score: 0.534280
+traces/462.libquantum-714B.champsimtrace.xz score: 0.717490
+traces/482.sphinx3-1100B.champsimtrace.xz score: 0.995030
+avg score: 0.667762
+
+
+ghb-lru
+traces/436.cactusADM-1804B.champsimtrace.xz score: 0.401030
+traces/437.leslie3d-134B.champsimtrace.xz score: 1.086040
+traces/450.soplex-247B.champsimtrace.xz score: 0.327050
+traces/459.GemsFDTD-1169B.champsimtrace.xz score: 0.535660
+traces/462.libquantum-714B.champsimtrace.xz score: 0.873610
+traces/482.sphinx3-1100B.champsimtrace.xz score: 0.876560
+avg score: 0.683325
+
+ghb-mrulfu
+traces/436.cactusADM-1804B.champsimtrace.xz score: 0.404290
+traces/437.leslie3d-134B.champsimtrace.xz score: 0.885520
+traces/450.soplex-247B.champsimtrace.xz score: 0.312440
+traces/459.GemsFDTD-1169B.champsimtrace.xz score: 0.532240
+traces/462.libquantum-714B.champsimtrace.xz score: 0.898040
+traces/482.sphinx3-1100B.champsimtrace.xz score: 0.912520
+avg score: 0.657508
+
+ghb-new
+traces/436.cactusADM-1804B.champsimtrace.xz score: 0.404290
+traces/437.leslie3d-134B.champsimtrace.xz score: 0.894340
+traces/450.soplex-247B.champsimtrace.xz score: 0.315990
+traces/459.GemsFDTD-1169B.champsimtrace.xz score: 0.532890
+traces/462.libquantum-714B.champsimtrace.xz score: 0.898040
+traces/482.sphinx3-1100B.champsimtrace.xz score: 0.931310
+avg score: 0.662810
+
+ghb-mru
+traces/436.cactusADM-1804B.champsimtrace.xz score: 0.404290
+traces/437.leslie3d-134B.champsimtrace.xz score: 0.891300
+traces/450.soplex-247B.champsimtrace.xz score: 0.315390
+traces/459.GemsFDTD-1169B.champsimtrace.xz score: 0.532240
+traces/462.libquantum-714B.champsimtrace.xz score: 0.898040
+traces/482.sphinx3-1100B.champsimtrace.xz score: 0.929730
+avg score: 0.661832
+
+ghb-bip
+traces/436.cactusADM-1804B.champsimtrace.xz score: 0.403550
+traces/437.leslie3d-134B.champsimtrace.xz score: 0.893580
+traces/450.soplex-247B.champsimtrace.xz score: 0.315570
+traces/459.GemsFDTD-1169B.champsimtrace.xz score: 0.537560
+traces/462.libquantum-714B.champsimtrace.xz score: 0.903010
+traces/482.sphinx3-1100B.champsimtrace.xz score: 0.945630
+avg score: 0.666483
+
+ghb-dip
+traces/436.cactusADM-1804B.champsimtrace.xz score: 0.404400
+traces/437.leslie3d-134B.champsimtrace.xz score: 0.891820
+traces/450.soplex-247B.champsimtrace.xz score: 0.314950
+traces/459.GemsFDTD-1169B.champsimtrace.xz score: 0.535230
+traces/462.libquantum-714B.champsimtrace.xz score: 0.897370
+traces/482.sphinx3-1100B.champsimtrace.xz score: 0.930230
+avg score: 0.662333
+
+
+markov-lru
+traces/436.cactusADM-1804B.champsimtrace.xz score: 0.409210
+traces/437.leslie3d-134B.champsimtrace.xz score: 1.165590
+traces/450.soplex-247B.champsimtrace.xz score: 0.380260
+traces/459.GemsFDTD-1169B.champsimtrace.xz score: 0.545490
+traces/462.libquantum-714B.champsimtrace.xz score: 0.872610
+traces/482.sphinx3-1100B.champsimtrace.xz score: 1.145520
+avg score: 0.753113
+
+markov-lfu
+traces/436.cactusADM-1804B.champsimtrace.xz score: 0.409930
+traces/437.leslie3d-134B.champsimtrace.xz score: 1.054880
+traces/450.soplex-247B.champsimtrace.xz score: 0.352560
+traces/459.GemsFDTD-1169B.champsimtrace.xz score: 0.278470
+traces/462.libquantum-714B.champsimtrace.xz score: 0.900770
+traces/482.sphinx3-1100B.champsimtrace.xz score: 1.164820
+avg score: 0.693572
+
+markov-mrulfu
+traces/436.cactusADM-1804B.champsimtrace.xz score: 0.409930
+traces/437.leslie3d-134B.champsimtrace.xz score: 1.048640
+traces/450.soplex-247B.champsimtrace.xz score: 0.343970
+traces/459.GemsFDTD-1169B.champsimtrace.xz score: 0.263980
+traces/462.libquantum-714B.champsimtrace.xz score: 0.900770
+traces/482.sphinx3-1100B.champsimtrace.xz score: 1.152900
+avg score: 0.686698
+
+markov-mru
+traces/436.cactusADM-1804B.champsimtrace.xz score: 0.409930
+traces/437.leslie3d-134B.champsimtrace.xz score: 1.053390
+traces/450.soplex-247B.champsimtrace.xz score: 0.349890
+traces/459.GemsFDTD-1169B.champsimtrace.xz score: 0.263730
+traces/462.libquantum-714B.champsimtrace.xz score: 0.900770
+traces/482.sphinx3-1100B.champsimtrace.xz score: 1.162250
+avg score: 0.689993
+
+markov-bip
+traces/436.cactusADM-1804B.champsimtrace.xz score: 0.409820
+traces/437.leslie3d-134B.champsimtrace.xz score: 1.057170
+traces/450.soplex-247B.champsimtrace.xz score: 0.342040
+traces/459.GemsFDTD-1169B.champsimtrace.xz score: 0.277370
+traces/462.libquantum-714B.champsimtrace.xz score: 0.917600
+traces/482.sphinx3-1100B.champsimtrace.xz score: 1.174250
+avg score: 0.696375
+
+markov-dip
+traces/436.cactusADM-1804B.champsimtrace.xz score: 0.410190
+traces/437.leslie3d-134B.champsimtrace.xz score: 1.056950
+traces/450.soplex-247B.champsimtrace.xz score: 0.349450
+traces/459.GemsFDTD-1169B.champsimtrace.xz score: 0.253050
+traces/462.libquantum-714B.champsimtrace.xz score: 0.899860
+traces/482.sphinx3-1100B.champsimtrace.xz score: 1.160360
+avg score: 0.688310
+
+
+
+pangloss-lru
+traces/436.cactusADM-1804B.champsimtrace.xz score: 0.409890
+traces/437.leslie3d-134B.champsimtrace.xz score: 1.173480
+traces/450.soplex-247B.champsimtrace.xz score: 0.380190
+traces/459.GemsFDTD-1169B.champsimtrace.xz score: 0.611450
+traces/462.libquantum-714B.champsimtrace.xz score: 0.873010
+traces/482.sphinx3-1100B.champsimtrace.xz score: 1.137850
+avg score: 0.764312
+
+pangloss-lfu
+traces/436.cactusADM-1804B.champsimtrace.xz score: 0.410500
+traces/437.leslie3d-134B.champsimtrace.xz score: 1.107390
+traces/450.soplex-247B.champsimtrace.xz score: 0.358450
+traces/459.GemsFDTD-1169B.champsimtrace.xz score: 0.532620
+traces/462.libquantum-714B.champsimtrace.xz score: 0.901190
+traces/482.sphinx3-1100B.champsimtrace.xz score: 1.157750
+avg score: 0.744650
+
+pangloss-mrulfu
+traces/436.cactusADM-1804B.champsimtrace.xz score: 0.410500
+traces/437.leslie3d-134B.champsimtrace.xz score: 1.103120
+traces/450.soplex-247B.champsimtrace.xz score: 0.351240
+traces/459.GemsFDTD-1169B.champsimtrace.xz score: 0.527580
+traces/462.libquantum-714B.champsimtrace.xz score: 0.901190
+traces/482.sphinx3-1100B.champsimtrace.xz score: 1.140640
+avg score: 0.739045
+
+pangloss-mru
+traces/436.cactusADM-1804B.champsimtrace.xz score: 0.410500
+traces/437.leslie3d-134B.champsimtrace.xz score: 1.106120
+traces/450.soplex-247B.champsimtrace.xz score: 0.356110
+traces/459.GemsFDTD-1169B.champsimtrace.xz score: 0.527580
+traces/462.libquantum-714B.champsimtrace.xz score: 0.901190
+traces/482.sphinx3-1100B.champsimtrace.xz score: 1.154290
+avg score: 0.742632
+
+pangloss-bip
+traces/436.cactusADM-1804B.champsimtrace.xz score: 0.410230
+traces/437.leslie3d-134B.champsimtrace.xz score: 1.107290
+traces/450.soplex-247B.champsimtrace.xz score: 0.349660
+traces/459.GemsFDTD-1169B.champsimtrace.xz score: 0.528250
+traces/462.libquantum-714B.champsimtrace.xz score: 0.917660
+traces/482.sphinx3-1100B.champsimtrace.xz score: 1.172900
+avg score: 0.747665
+
+pangloss-dip
+traces/436.cactusADM-1804B.champsimtrace.xz score: 0.410450
+traces/437.leslie3d-134B.champsimtrace.xz score: 1.106240
+traces/450.soplex-247B.champsimtrace.xz score: 0.357030
+traces/459.GemsFDTD-1169B.champsimtrace.xz score: 0.530600
+traces/462.libquantum-714B.champsimtrace.xz score: 0.899450
+traces/482.sphinx3-1100B.champsimtrace.xz score: 1.154880
+avg score: 0.743108
+
